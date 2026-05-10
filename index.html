@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Reel Scout — Movie Rating Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0907;
+    --bg-elev: #141110;
+    --bg-elev-2: #1d1816;
+    --line: #2a2320;
+    --ink: #f5ede0;
+    --ink-dim: #8a7f72;
+    --amber: #e8a447;
+    --amber-bright: #ffb95a;
+    --green: #6ad07a;
+    --red: #e36363;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--ink); font-family: 'Inter Tight', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+    opacity: .5;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(11,9,7,.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; }
+  .logo span { color: var(--amber); }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--bg-elev); border: 1px solid var(--line);
+    color: var(--ink); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; transition: all .2s;
+  }
+  .icon-btn:hover { background: var(--bg-elev-2); }
+  .icon-btn.active { background: var(--amber); color: #000; border-color: var(--amber); }
+
+  main { max-width: 640px; margin: 0 auto; padding: 16px; position: relative; z-index: 2; }
+
+  .panel {
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px; margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .panel h2 {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1.5px;
+    font-size: 16px; color: var(--ink-dim); margin-bottom: 12px;
+  }
+  label { display: block; font-size: 12px; color: var(--ink-dim); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+  input, select {
+    width: 100%; padding: 11px 12px;
+    background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink); border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    transition: border-color .2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--amber); }
+  .help { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
+  .help a { color: var(--amber); text-decoration: none; }
+
+  .stage {
+    position: relative; aspect-ratio: 3/4;
+    background: #000; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--line); margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .stage::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    border: 2px solid transparent; border-radius: 16px;
+    background: linear-gradient(135deg, transparent 40%, rgba(232,164,71,.15) 50%, transparent 60%) border-box;
+  }
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--amber-bright), transparent);
+    box-shadow: 0 0 12px var(--amber-bright);
+    opacity: 0; pointer-events: none;
+  }
+  .scan-line.active {
+    opacity: 1;
+    animation: scan 1.5s linear infinite;
+  }
+  @keyframes scan {
+    0% { top: 0%; }
+    100% { top: 100%; }
+  }
+  .stage-overlay {
+    position: absolute; top: 12px; left: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--amber); letter-spacing: 1px;
+    background: rgba(0,0,0,.5); padding: 4px 8px; border-radius: 4px;
+  }
+
+  .actions { display: flex; gap: 10px; margin-bottom: 18px; }
+  .btn {
+    flex: 1; padding: 16px; border: none; cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px;
+    border-radius: 10px; transition: all .15s;
+  }
+  .btn-primary {
+    background: var(--amber); color: #1a1208;
+    box-shadow: 0 8px 20px -8px rgba(232,164,71,.6);
+  }
+  .btn-primary:hover { background: var(--amber-bright); transform: translateY(-1px); }
+  .btn-primary:disabled { background: var(--bg-elev-2); color: var(--ink-dim); box-shadow: none; cursor: not-allowed; transform: none; }
+  .btn-ghost { flex: 0 0 auto; padding: 16px 22px; background: var(--bg-elev); color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:hover { background: var(--bg-elev-2); }
+
+  .status {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--ink-dim); padding: 8px 0; min-height: 20px;
+    text-align: center;
+  }
+  .status.error { color: var(--red); }
+  .status.success { color: var(--green); }
+
+  .ocr-log {
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px; margin-bottom: 14px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--ink-dim); max-height: 80px; overflow-y: auto;
+    word-break: break-word;
+  }
+  .ocr-log strong { color: var(--amber); }
+
+  .results { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    display: flex; gap: 14px; padding: 14px;
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 12px; opacity: 0; transform: translateY(8px);
+    animation: pop .5s forwards;
+  }
+  @keyframes pop { to { opacity: 1; transform: translateY(0); } }
+  .poster {
+    width: 70px; height: 100px; flex-shrink: 0;
+    background: var(--bg-elev-2); border-radius: 6px;
+    object-fit: cover; border: 1px solid var(--line);
+  }
+  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .title { font-weight: 600; font-size: 16px; margin-bottom: 4px; line-height: 1.2; }
+  .meta { font-size: 12px; color: var(--ink-dim); margin-bottom: 8px; line-height: 1.4; }
+  .ratings { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rating-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 9px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+    border: 1px solid;
+  }
+  .r-high { color: var(--green); border-color: rgba(106,208,122,.3); background: rgba(106,208,122,.08); }
+  .r-mid { color: var(--amber); border-color: rgba(232,164,71,.3); background: rgba(232,164,71,.08); }
+  .r-low { color: var(--red); border-color: rgba(227,99,99,.3); background: rgba(227,99,99,.08); }
+  .r-none { color: var(--ink-dim); border-color: var(--line); }
+
+  .empty {
+    text-align: center; padding: 40px 20px;
+    color: var(--ink-dim); font-size: 13px;
+  }
+  .empty .big {
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+    color: var(--ink); letter-spacing: 1.5px; margin-bottom: 8px;
+  }
+  
+  .legend {
+    display: flex; justify-content: center; gap: 16px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 12px 0; border-top: 1px solid var(--line);
+    margin-top: 8px; color: var(--ink-dim);
+  }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">REEL<span>•</span>SCOUT</div>
+  <button class="icon-btn" id="settingsBtn" title="Nastavení">⚙</button>
+</header>
+
+<main>
+  <div class="panel" id="settingsPanel">
+    <h2>NASTAVENÍ</h2>
+    <label for="apiKey">OMDB API klíč</label>
+    <input id="apiKey" type="text" placeholder="např. 1a2b3c4d" autocomplete="off" />
+    <div class="help">Zdarma na <a href="https://www.omdbapi.com/apikey.aspx" target="_blank">omdbapi.com/apikey.aspx</a> · 1000 dotazů/den · <strong>nezapomeň kliknout na ověřovací odkaz v mailu</strong></div>
+    <button class="btn btn-ghost" id="testKeyBtn" style="width:100%;margin-top:10px;padding:10px;font-size:14px;">⚡ OTESTOVAT KLÍČ</button>
+    
+    <label for="lang">Jazyk OCR</label>
+    <select id="lang">
+      <option value="eng">Angličtina (rychlé)</option>
+      <option value="ces">Čeština</option>
+      <option value="ces+eng">Čeština + Angličtina</option>
+    </select>
+    <div class="help">Pro česky znějící názvy zvol češtinu (stáhne se větší jazykový balíček ~10MB)</div>
+  </div>
+
+  <div class="stage">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="scan-line" id="scanLine"></div>
+    <div class="stage-overlay">● LIVE</div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="captureBtn">📸 NASKENOVAT</button>
+    <button class="btn btn-ghost" id="resetBtn">⟲</button>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="ocrResult"></div>
+  <div class="results" id="results">
+    <div class="empty">
+      <div class="big">NAMIŘ NA OBRAZOVKU</div>
+      <div>Zachytím názvy filmů a doplním IMDB hodnocení.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--green)"></span> 7.5+ doporučeno</span>
+    <span><span class="dot" style="background:var(--amber)"></span> 6.0–7.4 ok</span>
+    <span><span class="dot" style="background:var(--red)"></span> &lt; 6.0 slabé</span>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+
+// In-memory state (artifacts can't use localStorage)
+const state = {
+  apiKey: '',
+  lang: 'eng',
+  stream: null,
+  scanning: false,
+};
+
+// ─── UI helpers ──────────────────────────────────────────
+const setStatus = (msg, type = '') => {
+  const el = $('status');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+};
+
+const toggleSettings = (force) => {
+  const p = $('settingsPanel');
+  const show = force !== undefined ? force : p.classList.contains('hidden');
+  p.classList.toggle('hidden', !show);
+  $('settingsBtn').classList.toggle('active', show);
+};
+
+$('settingsBtn').onclick = () => toggleSettings();
+$('apiKey').oninput = e => { state.apiKey = e.target.value.trim(); };
+$('lang').onchange = e => { state.lang = e.target.value; };
+$('testKeyBtn').onclick = () => testApiKey();
+
+// ─── Camera ──────────────────────────────────────────────
+async function startCamera() {
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    });
+    $('video').srcObject = state.stream;
+    setStatus('Kamera připravená. Zadej OMDB klíč v ⚙ a namiř.');
+  } catch (err) {
+    setStatus('Kamera nedostupná: ' + err.message, 'error');
+    toggleSettings(true);
+  }
+}
+
+// ─── Capture & OCR ───────────────────────────────────────
+function captureFrame() {
+  const v = $('video');
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth || 1280;
+  c.height = v.videoHeight || 720;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+  // light contrast boost helps OCR on dim TV/streaming UIs
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v2 = (d[i] + d[i + 1] + d[i + 2]) / 3;
+    const boosted = v2 < 128 ? v2 * 0.7 : Math.min(255, v2 * 1.25);
+    d[i] = d[i + 1] = d[i + 2] = boosted;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+async function runOCR(canvas) {
+  const result = await Tesseract.recognize(canvas, state.lang, {
+    logger: m => {
+      if (m.status === 'recognizing text') {
+        setStatus(`OCR: ${Math.round(m.progress * 100)}%`);
+      } else if (m.status === 'loading language model' || m.status === 'loading tesseract core') {
+        setStatus(`Načítám: ${m.status} ${Math.round((m.progress || 0) * 100)}%`);
+      }
+    },
+  });
+  return result.data.text || '';
+}
+
+// ─── Title extraction ────────────────────────────────────
+function extractCandidates(text) {
+  // Each non-empty line is a candidate. Normalize, dedupe, length-filter.
+  const lines = text.split(/[\n\r]+/);
+  const seen = new Set();
+  const out = [];
+  for (let raw of lines) {
+    let s = raw.replace(/[^\p{L}\p{N} :\-'!?&.]/gu, ' ')
+               .replace(/\s+/g, ' ').trim();
+    if (s.length < 3 || s.length > 60) continue;
+    if (!/\p{L}/u.test(s)) continue;
+    // skip "all caps single word" noise like "HD", "4K"
+    if (s.length <= 4 && s === s.toUpperCase()) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+// ─── OMDB lookup ─────────────────────────────────────────
+// Returns { ok: true, data } | { ok: false, error: string }
+async function lookupOMDB(title) {
+  if (!state.apiKey) return { ok: false, error: 'Chybí API klíč' };
+  const url = `https://www.omdbapi.com/?apikey=${encodeURIComponent(state.apiKey)}&t=${encodeURIComponent(title)}&plot=short`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    const data = await res.json();
+    if (data.Response === 'True') return { ok: true, data };
+    return { ok: false, error: data.Error || 'Neznámá chyba' };
+  } catch (e) {
+    return { ok: false, error: 'Síťová chyba: ' + e.message };
+  }
+}
+
+async function testApiKey() {
+  if (!state.apiKey) {
+    setStatus('Nejprve zadej API klíč', 'error');
+    return;
+  }
+  setStatus('Testuji klíč…');
+  const r = await lookupOMDB('Inception');
+  if (r.ok) {
+    setStatus(`✓ Klíč funguje! Test: "${r.data.Title}" (${r.data.Year}) IMDB ${r.data.imdbRating}`, 'success');
+  } else {
+    let hint = '';
+    if (/invalid api key/i.test(r.error)) hint = ' — pravděpodobně neaktivovaný, zkontroluj mail od OMDb';
+    else if (/limit/i.test(r.error)) hint = ' — vyčerpaný denní limit';
+    setStatus(`✗ ${r.error}${hint}`, 'error');
+  }
+}
+
+// ─── Render ──────────────────────────────────────────────
+function ratingClass(r) {
+  if (!r || r === 'N/A') return 'r-none';
+  const n = parseFloat(r);
+  if (isNaN(n)) return 'r-none';
+  if (n >= 7.5) return 'r-high';
+  if (n >= 6.0) return 'r-mid';
+  return 'r-low';
+}
+
+function renderCard(m, idx) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.animationDelay = (idx * 70) + 'ms';
+
+  const rt = (m.Ratings || []).find(r => r.Source === 'Rotten Tomatoes');
+  const meta = m.Metascore && m.Metascore !== 'N/A' ? m.Metascore : null;
+  const poster = m.Poster && m.Poster !== 'N/A' ? m.Poster : '';
+
+  card.innerHTML = `
+    ${poster
+      ? `<img class="poster" src="${poster}" alt="" loading="lazy" onerror="this.style.background='var(--bg-elev-2)';this.removeAttribute('src')"/>`
+      : `<div class="poster"></div>`
+    }
+    <div class="info">
+      <div>
+        <div class="title">${escapeHtml(m.Title)}</div>
+        <div class="meta">${escapeHtml(m.Year || '')}${m.Runtime && m.Runtime !== 'N/A' ? ' · ' + escapeHtml(m.Runtime) : ''}${m.Genre && m.Genre !== 'N/A' ? ' · ' + escapeHtml(m.Genre.split(',')[0].trim()) : ''}</div>
+      </div>
+      <div class="ratings">
+        <span class="rating-pill ${ratingClass(m.imdbRating)}">⭐ IMDB ${m.imdbRating || '—'}</span>
+        ${rt ? `<span class="rating-pill ${ratingClass(parseFloat(rt.Value)/10)}">🍅 ${rt.Value}</span>` : ''}
+        ${meta ? `<span class="rating-pill ${ratingClass(parseInt(meta)/10)}">Ⓜ ${meta}</span>` : ''}
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── Main capture flow ───────────────────────────────────
+$('captureBtn').onclick = async () => {
+  if (state.scanning) return;
+  if (!state.apiKey) {
+    setStatus('Nejprve zadej OMDB klíč (ikona ⚙ vpravo nahoře)', 'error');
+    toggleSettings(true);
+    return;
+  }
+  state.scanning = true;
+  $('captureBtn').disabled = true;
+  $('results').innerHTML = '';
+  $('ocrResult').innerHTML = '';
+  $('scanLine').classList.add('active');
+
+  try {
+    setStatus('Snímám obraz…');
+    const canvas = captureFrame();
+
+    const text = await runOCR(canvas);
+    const candidates = extractCandidates(text);
+
+    const log = document.createElement('div');
+    log.className = 'ocr-log';
+    log.innerHTML = `<strong>Rozpoznáno (${candidates.length}):</strong> ${escapeHtml(candidates.join(' · ') || '(nic)')}`;
+    $('ocrResult').appendChild(log);
+
+    if (candidates.length === 0) {
+      setStatus('Žádný použitelný text. Zkus blíž / lepší světlo / méně rozmazaný záběr.', 'error');
+      return;
+    }
+
+    setStatus(`Hledám hodnocení pro ${Math.min(candidates.length, 10)} kandidátů…`);
+    const found = [];
+    const errors = [];
+    let queries = 0;
+    for (const title of candidates.slice(0, 10)) {
+      queries++;
+      setStatus(`Hledám ${queries}/${Math.min(candidates.length, 10)}: "${title}"`);
+      const r = await lookupOMDB(title);
+      if (r.ok && !found.find(f => f.imdbID === r.data.imdbID)) {
+        found.push(r.data);
+      } else if (!r.ok) {
+        errors.push(r.error);
+        // hard-stop on key/quota issues — no point hammering
+        if (/invalid api key|limit reached/i.test(r.error)) break;
+      }
+    }
+
+    if (found.length === 0) {
+      const uniqueErrors = [...new Set(errors)];
+      const errMsg = uniqueErrors.length
+        ? `OMDB chyba: ${uniqueErrors.join(' / ')}`
+        : 'Žádný film nenalezen v OMDB. Zkus jiný úhel nebo zoom.';
+      setStatus(errMsg, 'error');
+      return;
+    }
+
+    // sort: high IMDB first, then by year desc
+    found.sort((a, b) => {
+      const ra = parseFloat(a.imdbRating) || 0;
+      const rb = parseFloat(b.imdbRating) || 0;
+      if (rb !== ra) return rb - ra;
+      return (parseInt(b.Year) || 0) - (parseInt(a.Year) || 0);
+    });
+
+    const wrap = $('results');
+    wrap.innerHTML = '';
+    found.forEach((m, i) => wrap.appendChild(renderCard(m, i)));
+
+    setStatus(`Nalezeno ${found.length} ${found.length === 1 ? 'film' : found.length < 5 ? 'filmy' : 'filmů'} · seřazeno podle IMDB`, 'success');
+  } catch (err) {
+    setStatus('Chyba: ' + err.message, 'error');
+  } finally {
+    $('scanLine').classList.remove('active');
+    $('captureBtn').disabled = false;
+    state.scanning = false;
+  }
+};
+
+$('resetBtn').onclick = () => {
+  $('results').innerHTML = `
+    <div class="empty">
+      <div class="big">NAMIŘ NA OBRAZOVKU</div>
+      <div>Zachytím názvy filmů a doplním IMDB hodnocení.</div>
+    </div>`;
+  $('ocrResult').innerHTML = '';
+  setStatus('Připraveno.');
+};
+
+// ─── Init ────────────────────────────────────────────────
+toggleSettings(true);
+startCamera();
+</script>
+</body>
+</html>
